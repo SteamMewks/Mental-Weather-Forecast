@@ -1,0 +1,128 @@
+/* =========================
+   全体設定
+========================= */
+body {
+  font-family: sans-serif;
+  margin: 20px;
+}
+
+
+/* =========================
+   ヘッダー・ナビ
+========================= */
+.header {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.manual-link {
+  margin-left: 8px;
+  text-decoration: none;
+  font-weight: bold;
+  color: #555;
+}
+
+.manual-link:hover {
+  color: #000;
+}
+
+
+/* =========================
+   カレンダー
+========================= */
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.day {
+  padding: 10px;
+  min-height: 40px;
+  border: 1px solid #ccc;
+  text-align: center;
+  cursor: pointer;
+}
+
+.color-box {
+  width: 18px;
+  height: 18px;
+  margin: 0 auto;
+  border-radius: 3px;
+}
+
+
+/* =========================
+   モーダル共通
+========================= */
+.modal-bg {
+  position: fixed;
+  inset: 0;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0,0,0,0.5);
+}
+
+.modal {
+  width: 280px;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+
+/* =========================
+   ボタン・入力UI
+========================= */
+.color-btn,
+.fatigue-btn {
+  display: inline-block;
+  width: 38px;
+  height: 38px;
+  padding: 10px;
+  margin: 4px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.color-btn.selected,
+.fatigue-btn.selected {
+  border-color: #000;
+}
+
+
+/* 疲労ボタン専用上書き */
+.fatigue-btn {
+  width: auto;
+  height: auto;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: #eee;
+}
+
+.fatigue-bar {
+  width: 75%;
+  height: 6px;
+  margin: 4px auto;
+  border-radius: 3px;
+  background-color: #ffa;
+}
+
+
+/* =========================
+   個別モーダル拡張
+========================= */
+/* 連動設定モーダル用 */
+.modal-title {
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.modal-note {
+  text-align: center;
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 12px;
+}

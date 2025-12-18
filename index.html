@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>心の天気予報</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ヘッダー：年月移動・タイトル・マニュアル -->
+  <header class="header">
+    <div class="nav">
+      <button id="prevYear">《</button>
+      <button id="prevMonth">〈</button>
+      <span id="title"></span>
+      <button id="nextMonth">〉</button>
+      <button id="nextYear">》</button>
+    </div>
+
+    <a
+      href="https://note.com/steammewks/n/nc8cbbf9b66f9"
+      target="_blank"
+      class="manual-link"
+    >
+      使い方(外部リンク)
+    </a>
+  </header>
+
+  <!-- カレンダー表示領域 -->
+  <main>
+    <div id="calendar" class="calendar"></div>
+
+    <!-- 解析結果表示 -->
+    <section
+      id="analysis"
+      style="margin-top:20px; font-size:14px; padding:10px; border:1px solid #ccc;"
+    >
+      直近1週間の傾向を解析中...
+    </section>
+  </main>
+
+  <!-- 設定ボタン -->
+  <br><button id="openSettings" class="settings-btn">⚙ 連動設定</button>
+
+  <!-- 日別入力モーダル -->
+  <div id="modalBg" class="modal-bg">
+    <div class="modal">
+      <h3 id="modalDate"></h3>
+
+      <!-- 気分（色） -->
+      <section>
+        <p><b>気分（色）</b></p>
+        <div id="colorGroup" class="color-group">
+          <div class="color-btn" data-val="0" style="background:#4A8AFF"></div>
+          <div class="color-btn" data-val="1" style="background:#4DFF7A"></div>
+          <div class="color-btn" data-val="2" style="background:#FFF55C"></div>
+          <div class="color-btn" data-val="3" style="background:#FF9A2B"></div>
+          <div class="color-btn" data-val="4" style="background:#FF3A3A"></div>
+        </div>
+      </section>
+
+      <!-- 疲労度 -->
+      <section>
+        <p><b>疲労</b></p>
+        <div id="fatigueGroup" class="fatigue-group">
+          <div class="fatigue-btn" data-val="0">元気</div>
+          <div class="fatigue-btn" data-val="1">普通</div>
+          <div class="fatigue-btn" data-val="2">疲労</div>
+        </div>
+      </section>
+
+      <!-- 朝の状態 -->
+      <section>
+        <p><b>朝、気分良く起きれた？</b></p>
+        <label>
+          <input type="radio" name="morningGood" value="true" /> 起きれた
+        </label>
+        <label>
+          <input type="radio" name="morningGood" value="false" /> 起きれなかった
+        </label>
+      </section>
+
+      <!-- メモ -->
+      <section>
+        <p><b>メモ（15文字）</b></p>
+        <input id="memo" maxlength="15" style="width:100%;" />
+      </section>
+
+      <!-- 操作ボタン -->
+      <div class="modal-actions">
+        <button id="saveBtn" type="button">保存</button>
+        <button id="deleteBtn" type="button">削除</button>
+        <button type="button" onclick="closeModal()">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+<!-- 設定モーダル -->
+<div id="settingsModalBg" class="modal-bg">
+  <div class="modal">
+    <h3 class="modal-title">連動設定</h3>
+    <p class="modal-note">⚠一部未実装<br>ゲームと連動させるために必要になります</p>
+
+    <input
+      id="usernameInput"
+      maxlength="6"
+      placeholder="ユーザー名"
+    />
+
+    <div class="modal-actions">
+      <button id="settingsSaveBtn">保存</button>
+      <button type="button" onclick="closeSettings()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+  <!-- スクリプト -->
+  <script src="script.js"></script>
+</body>
+</html>
