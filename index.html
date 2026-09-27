@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#4AA8FF" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="心の天気予報" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png" />
+  <title>心の天気予報</title>
+  <style>
+/* =========================
+   全体設定
+========================= */
+body {
+  font-family: sans-serif;
+  margin: 20px;
+}
+
+/* =========================
+   ヘッダー・ナビ
+========================= */
+.header {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.manual-link {
+  margin-left: 8px;
+  text-decoration: none;
+  font-weight: bold;
+  color: #555;
+}
+
+.manual-link:hover {
+  color: #000;
+}
+
+/* =========================
+   カレンダー
+========================= */
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.day {
+  padding: 10px;
+  min-height: 40px;
+  border: 1px solid #ccc;
+  text-align: center;
+  cursor: pointer;
+}
+
+.color-box {
+  width: 18px;
+  height: 18px;
+  margin: 0 auto;
+  border-radius: 3px;
+}
+
+/* =========================
+   モーダル共通
+========================= */
+.modal-bg {
+  position: fixed;
+  inset: 0;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0,0,0,0.5);
+}
+
+.modal {
+  width: 280px;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+}
+
+/* =========================
+   ボタン・入力UI
+========================= */
+.color-btn,
+.fatigue-btn {
+  display: inline-block;
+  width: 38px;
+  height: 38px;
+  padding: 10px;
+  margin: 4px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.color-btn.selected,
+.fatigue-btn.selected {
+  border-color: #000;
+}
+
+/* 疲労ボタン専用上書き */
+.fatigue-btn {
+  width: auto;
+  height: auto;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: #eee;
+}
+
+.fatigue-bar {
+  width: 75%;
+  height: 6px;
+  margin: 4px auto;
+  border-radius: 3px;
+  background-color: #ffa;
+}
+
+/* =========================
+   個別モーダル拡張
+========================= */
+.modal-title {
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.modal-note {
+  text-align: center;
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 12px;
+}
+
+/* =========================
+   補助操作・ダウンロード
+========================= */
+.utility-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.utility-actions button,
+.modal-actions button,
+.download-form button {
+  cursor: pointer;
+}
+
+.download-form {
+  display: grid;
+  gap: 12px;
+}
+
+.download-form label {
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.download-form input,
+.download-form select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px;
+}
+
+.download-summary {
+  min-height: 1.4em;
+  margin: 0;
+  font-size: 13px;
+  color: #555;
+}
+
+.pwa-divider {
+  border: 0;
+  border-top: 1px solid #ddd;
+  margin: 18px 0 14px;
+}
+
+.pwa-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.pwa-panel h4 {
+  margin: 0;
+  text-align: center;
+}
+
+.pwa-panel button {
+  width: 100%;
+  padding: 9px;
+  cursor: pointer;
+}
+
+.pwa-status {
+  min-height: 1.4em;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #666;
+}
+
+.update-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.update-actions button[hidden] {
+  display: none;
+}
+
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="nav">
+      <button id="prevYear">《</button>
+      <button id="prevMonth">〈</button>
+      <span id="title"></span>
+      <button id="nextMonth">〉</button>
+      <button id="nextYear">》</button>
+    </div>
+
+    <a
+      href="https://note.com/steammewks/n/nc8cbbf9b66f9"
+      target="_blank"
+      class="manual-link"
+    >
+      使い方(外部リンク)
+    </a>
+  </header>
+
+  <main>
+    <div id="calendar" class="calendar"></div>
+
+    <section
+      id="analysis"
+      style="margin-top:20px; font-size:14px; padding:10px; border:1px solid #ccc;"
+    >
+      直近1週間の傾向を解析中...
+    </section>
+  </main>
+
+  <div class="utility-actions">
+    <button id="openSettings" class="settings-btn">⚙ 連動設定</button>
+    <button id="openDownload" class="settings-btn">⚙ ダウンロード</button>
+  </div>
+
+  <div id="modalBg" class="modal-bg">
+    <div class="modal">
+      <h3 id="modalDate"></h3>
+
+      <section>
+        <p><b>気分（色）</b></p>
+        <div id="colorGroup" class="color-group">
+          <div class="color-btn" data-val="0" style="background:#4A8AFF"></div>
+          <div class="color-btn" data-val="1" style="background:#4DFF7A"></div>
+          <div class="color-btn" data-val="2" style="background:#FFF55C"></div>
+          <div class="color-btn" data-val="3" style="background:#FF9A2B"></div>
+          <div class="color-btn" data-val="4" style="background:#FF3A3A"></div>
+        </div>
+      </section>
+
+      <section>
+        <p><b>疲労</b></p>
+        <div id="fatigueGroup" class="fatigue-group">
+          <div class="fatigue-btn" data-val="0">元気</div>
+          <div class="fatigue-btn" data-val="1">普通</div>
+          <div class="fatigue-btn" data-val="2">疲労</div>
+        </div>
+      </section>
+
+      <section>
+        <p><b>朝、気分良く起きれた？</b></p>
+        <label>
+          <input type="radio" name="morningGood" value="true" /> 起きれた
+        </label>
+        <label>
+          <input type="radio" name="morningGood" value="false" /> 起きれなかった
+        </label>
+      </section>
+
+      <section>
+        <p><b>メモ（15文字）</b></p>
+        <input id="memo" maxlength="15" style="width:100%;" />
+      </section>
+
+      <div class="modal-actions">
+        <button id="saveBtn" type="button">保存</button>
+        <button id="deleteBtn" type="button">削除</button>
+        <button type="button" onclick="closeModal()">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="settingsModalBg" class="modal-bg">
+    <div class="modal">
+      <h3 class="modal-title">連動設定</h3>
+      <p class="modal-note">⚠一部未実装<br>ゲームと連動させるために必要になります</p>
+
+      <input
+        id="usernameInput"
+        maxlength="6"
+        placeholder="ユーザー名"
+      />
+
+      <div class="modal-actions">
+        <button id="settingsSaveBtn">保存</button>
+        <button type="button" onclick="closeSettings()">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="downloadModalBg" class="modal-bg">
+    <div class="modal">
+      <h3 class="modal-title">記録をダウンロード</h3>
+      <p class="modal-note">保存される記録は直近1年分です。期間を指定して書き出せます。</p>
+
+      <div class="download-form">
+        <label>
+          開始日
+          <input id="downloadStart" type="date" />
+        </label>
+
+        <label>
+          終了日
+          <input id="downloadEnd" type="date" />
+        </label>
+
+        <label>
+          形式
+          <select id="downloadFormat">
+            <option value="json">JSON</option>
+            <option value="csv">CSV</option>
+          </select>
+        </label>
+
+        <p id="downloadSummary" class="download-summary"></p>
+      </div>
+
+      <div class="modal-actions">
+        <button id="downloadBtn" type="button">ダウンロード</button>
+        <button type="button" onclick="closeDownload()">閉じる</button>
+      </div>
+
+      <hr class="pwa-divider">
+
+      <section class="pwa-panel" aria-labelledby="pwaToolsTitle">
+        <h4 id="pwaToolsTitle">アプリ</h4>
+        <button id="installAppBtn" type="button">📲 アプリとしてインストール</button>
+        <p id="installStatus" class="pwa-status">ホーム画面から使えるPWAとして追加できます。</p>
+
+        <div class="update-actions">
+          <button id="checkUpdateBtn" type="button">🔄 更新を確認</button>
+          <button id="applyUpdateBtn" type="button" hidden>更新する</button>
+        </div>
+        <p id="updateStatus" class="pwa-status">更新は自動適用されません。「更新を確認」から手動で更新できます。</p>
+      </section>
+    </div>
+  </div>
+
+<script>
+console.log(`
+やあ （´・ω・｀)
+
+こころの天気予報アプリへようこそ──とは言え、君はちょっと覗きすぎているね。
+
+この小さな晴れ間や雨雲を数字で追うより、まずは深呼吸して落ち着いて欲しい。
+
+そう、「また」覗いたんだね。やると思ったよ。
+
+仏の顔もって言うし、責めるつもりもない。ここに書かれた秘密のちょっとした「気付き」は、君だけのものだ。
+
+殺伐とした日常で、心の晴れ間を忘れないでほしい──そう思って、この小さな項目を残したんだ。
+
+さて、ここで一言。
+
+「これをネタバレして“台無し”にしないと気が済まないくらい、気分は荒んでいるのかい？」
+
+さて、そろそろ画面に戻ろうか。このアプリはきっと、君の役にも立つ。
+`);
+
+const STORAGE_KEY = "moodLog";
+const RETENTION_YEARS = 1;
+
+let data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+if (!data.settings) data.settings = { username: "" };
+if (!data.records) data.records = {};
+
+function toLocalDateKey(date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function getRetentionStartDate(baseDate = new Date()) {
+  const cutoff = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+  cutoff.setFullYear(cutoff.getFullYear() - RETENTION_YEARS);
+  return cutoff;
+}
+
+function pruneOldRecords(baseDate = new Date()) {
+  const cutoffKey = toLocalDateKey(getRetentionStartDate(baseDate));
+  let removed = 0;
+
+  Object.keys(data.records).forEach(key => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(key) && key < cutoffKey) {
+      delete data.records[key];
+      removed++;
+    }
+  });
+
+  return removed;
+}
+
+function saveData() {
+  pruneOldRecords();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+const prunedOnLoad = pruneOldRecords();
+if (prunedOnLoad > 0) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+const today = new Date();
+let currentYear = today.getFullYear();
+let currentMonth = today.getMonth();
+
+function pad(n) {
+  return n.toString().padStart(2, "0");
+}
+
+function makeKey(y, m, d) {
+  return `${y}-${pad(m)}-${pad(d)}`;
+}
+
+const MOOD_COLORS = ["#4AA8FF", "#4DFF7A", "#FFF55C", "#FF9A2B", "#FF3A3A"];
+const FATIGUE_COLORS = ["#8AFF8A", "#FFFFA8", "#FF8A8A"];
+
+function renderCalendar() {
+  const cal = document.getElementById("calendar");
+  cal.innerHTML = "";
+
+  const first = new Date(currentYear, currentMonth, 1);
+  const last = new Date(currentYear, currentMonth + 1, 0);
+
+  document.getElementById("title").textContent =
+    `${currentYear}年 ${currentMonth + 1}月`;
+
+  for (let i = 0; i < first.getDay(); i++) {
+    cal.appendChild(document.createElement("div"));
+  }
+
+  for (let d = 1; d <= last.getDate(); d++) {
+    const key = makeKey(currentYear, currentMonth + 1, d);
+    cal.appendChild(createDayCell(d, key));
+  }
+}
+
+function createDayCell(day, key) {
+  const cell = document.createElement("div");
+  cell.className = "day";
+
+  const rec = data.records[key];
+
+  if (rec) {
+    cell.appendChild(createMoodBox(rec.mood));
+    cell.appendChild(createFatigueBar(rec.fatigue));
+  }
+
+  cell.appendChild(createDateLabel(day, rec));
+  cell.onclick = () => openModal(key);
+
+  return cell;
+}
+
+function createMoodBox(mood) {
+  const box = document.createElement("div");
+  box.className = "color-box";
+  box.style.background = MOOD_COLORS[mood];
+  return box;
+}
+
+function createFatigueBar(fatigue) {
+  const bar = document.createElement("div");
+  bar.className = "fatigue-bar";
+  bar.style.background = FATIGUE_COLORS[fatigue];
+  return bar;
+}
+
+function createDateLabel(day, rec) {
+  const wrap = document.createElement("div");
+  wrap.style.display = "flex";
+  wrap.style.justifyContent = "center";
+  wrap.style.alignItems = "center";
+  wrap.style.gap = "2px";
+
+  const mark =
+    rec?.flags?.morningGood === true ? "💤" :
+    rec?.flags?.morningGood === false ? "☁️" : "";
+
+  wrap.innerHTML = `<span style="font-weight:bold;">${day}</span>` +
+                   `<span style="font-size:12px;">${mark}</span>`;
+  return wrap;
+}
+
+function openModal(key) {
+  document.getElementById("modalBg").style.display = "flex";
+
+  const rec = data.records[key] || {
+    mood: 0,
+    fatigue: 0,
+    memo: "",
+    flags: { morningGood: null }
+  };
+
+  document.getElementById("modalDate").textContent = key;
+
+  bindMorningRadios(rec);
+  bindSelectButtons(".color-btn", rec, "mood");
+  bindSelectButtons(".fatigue-btn", rec, "fatigue");
+
+  document.getElementById("memo").value = rec.memo;
+
+  document.getElementById("saveBtn").onclick = () => {
+    rec.memo = document.getElementById("memo").value;
+    data.records[key] = rec;
+    saveData();
+    closeModal();
+    renderCalendar();
+    renderAnalysis();
+  };
+
+  document.getElementById("deleteBtn").onclick = () => {
+    delete data.records[key];
+    saveData();
+    closeModal();
+    renderCalendar();
+    renderAnalysis();
+  };
+}
+
+function bindMorningRadios(rec) {
+  document.querySelectorAll('input[name="morningGood"]').forEach(r => {
+    r.checked = String(rec.flags.morningGood) === r.value;
+    r.onchange = () => rec.flags.morningGood = (r.value === "true");
+  });
+}
+
+function bindSelectButtons(selector, rec, field) {
+  const buttons = document.querySelectorAll(selector);
+  buttons.forEach(btn => {
+    btn.classList.toggle("selected", Number(btn.dataset.val) === rec[field]);
+    btn.onclick = () => {
+      buttons.forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      rec[field] = Number(btn.dataset.val);
+    };
+  });
+}
+
+function closeModal() {
+  document.getElementById("modalBg").style.display = "none";
+}
+
+function openSettings() {
+  document.getElementById("settingsModalBg").style.display = "flex";
+  document.getElementById("usernameInput").value = data.settings.username;
+}
+
+function closeSettings() {
+  document.getElementById("settingsModalBg").style.display = "none";
+}
+
+function openDownload() {
+  pruneOldRecords();
+
+  const today = new Date();
+  const minDate = getRetentionStartDate(today);
+  const minKey = toLocalDateKey(minDate);
+  const maxKey = toLocalDateKey(today);
+
+  const startInput = document.getElementById("downloadStart");
+  const endInput = document.getElementById("downloadEnd");
+
+  startInput.min = minKey;
+  startInput.max = maxKey;
+  endInput.min = minKey;
+  endInput.max = maxKey;
+
+  const availableKeys = Object.keys(data.records)
+    .filter(key => key >= minKey && key <= maxKey)
+    .sort();
+
+  startInput.value = availableKeys[0] || minKey;
+  endInput.value = availableKeys[availableKeys.length - 1] || maxKey;
+
+  document.getElementById("downloadModalBg").style.display = "flex";
+  updateDownloadSummary();
+}
+
+function closeDownload() {
+  document.getElementById("downloadModalBg").style.display = "none";
+}
+
+function getRecordsInRange(startKey, endKey) {
+  return Object.keys(data.records)
+    .filter(key => key >= startKey && key <= endKey)
+    .sort()
+    .map(key => ({ date: key, ...data.records[key] }));
+}
+
+function updateDownloadSummary() {
+  const startKey = document.getElementById("downloadStart").value;
+  const endKey = document.getElementById("downloadEnd").value;
+  const summary = document.getElementById("downloadSummary");
+
+  if (!startKey || !endKey) {
+    summary.textContent = "開始日と終了日を指定してね。";
+    return;
+  }
+
+  if (startKey > endKey) {
+    summary.textContent = "開始日は終了日以前にしてね。";
+    return;
+  }
+
+  const count = getRecordsInRange(startKey, endKey).length;
+  summary.textContent = `${startKey} 〜 ${endKey} / ${count}件`;
+}
+
+function escapeCsv(value) {
+  const text = value == null ? "" : String(value);
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function recordsToCsv(records) {
+  const rows = [
+    ["date", "mood", "fatigue", "morningGood", "memo"],
+    ...records.map(rec => [
+      rec.date,
+      rec.mood,
+      rec.fatigue,
+      rec.flags?.morningGood ?? "",
+      rec.memo ?? ""
+    ])
+  ];
+
+  return rows.map(row => row.map(escapeCsv).join(",")).join("\r\n");
+}
+
+function downloadTextFile(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function downloadSelectedRecords() {
+  const startKey = document.getElementById("downloadStart").value;
+  const endKey = document.getElementById("downloadEnd").value;
+  const format = document.getElementById("downloadFormat").value;
+
+  if (!startKey || !endKey || startKey > endKey) {
+    alert("期間を正しく指定してね");
+    return;
+  }
+
+  const records = getRecordsInRange(startKey, endKey);
+  if (records.length === 0) {
+    alert("指定した期間には記録がないよ");
+    return;
+  }
+
+  const basename = `mental-weather_${startKey}_${endKey}`;
+
+  if (format === "csv") {
+    downloadTextFile(
+      `${basename}.csv`,
+      "\uFEFF" + recordsToCsv(records),
+      "text/csv;charset=utf-8"
+    );
+  } else {
+    const payload = {
+      app: "心の天気予報",
+      exportedAt: new Date().toISOString(),
+      period: { start: startKey, end: endKey },
+      records
+    };
+    downloadTextFile(
+      `${basename}.json`,
+      JSON.stringify(payload, null, 2),
+      "application/json;charset=utf-8"
+    );
+  }
+
+  closeDownload();
+}
+
+let deferredInstallPrompt = null;
+let swRegistration = null;
+let pendingUpdateWorker = null;
+
+function isStandaloneMode() {
+  return window.matchMedia("(display-mode: standalone)").matches ||
+         window.navigator.standalone === true;
+}
+
+function isIOSDevice() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+         (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+function refreshInstallUi() {
+  const button = document.getElementById("installAppBtn");
+  const status = document.getElementById("installStatus");
+  if (!button || !status) return;
+
+  if (isStandaloneMode()) {
+    button.disabled = true;
+    button.textContent = "✓ インストール済み";
+    status.textContent = "この端末ではアプリとして起動しています。";
+    return;
+  }
+
+  button.disabled = false;
+  button.textContent = deferredInstallPrompt
+    ? "📲 アプリとしてインストール"
+    : "📲 インストール方法を表示";
+
+  status.textContent = deferredInstallPrompt
+    ? "この端末にPWAとしてインストールできます。"
+    : "ブラウザによってはメニューからホーム画面へ追加します。";
+}
+
+async function installApp() {
+  const status = document.getElementById("installStatus");
+
+  if (isStandaloneMode()) {
+    refreshInstallUi();
+    return;
+  }
+
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    const choice = await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    status.textContent = choice.outcome === "accepted"
+      ? "インストール操作を受け付けました。"
+      : "インストールはキャンセルされました。";
+    refreshInstallUi();
+    return;
+  }
+
+  if (isIOSDevice()) {
+    alert("Safariの共有ボタンを開き、「ホーム画面に追加」を選んでね。");
+    status.textContent = "Safari：共有 → ホーム画面に追加 からインストールできます。";
+  } else {
+    alert("ブラウザのメニューにある「アプリをインストール」「ホーム画面に追加」などを選んでね。");
+    status.textContent = "ブラウザのメニューからインストールできます。";
+  }
+}
+
+function setUpdateStatus(message) {
+  const status = document.getElementById("updateStatus");
+  if (status) status.textContent = message;
+}
+
+function showPendingUpdate(worker) {
+  pendingUpdateWorker = worker || swRegistration?.waiting || null;
+  const applyButton = document.getElementById("applyUpdateBtn");
+  if (applyButton) applyButton.hidden = !pendingUpdateWorker;
+
+  if (pendingUpdateWorker) {
+    setUpdateStatus("更新版があります。『更新する』を押すまで現在の版を使い続けます。");
+  }
+}
+
+function watchInstallingWorker(worker) {
+  if (!worker) return;
+
+  worker.addEventListener("statechange", () => {
+    if (worker.state === "installed") {
+      if (navigator.serviceWorker.controller) {
+        showPendingUpdate(swRegistration?.waiting || worker);
+      } else {
+        setUpdateStatus("オフライン利用の準備ができました。次回からPWAとして利用できます。");
+      }
+    }
+  });
+}
+
+function bindServiceWorkerRegistration(registration) {
+  swRegistration = registration;
+
+  if (registration.waiting) {
+    showPendingUpdate(registration.waiting);
+  }
+
+  if (registration.installing) {
+    watchInstallingWorker(registration.installing);
+  }
+
+  registration.addEventListener("updatefound", () => {
+    watchInstallingWorker(registration.installing);
+  });
+}
+
+async function checkForAppUpdate() {
+  if (!("serviceWorker" in navigator)) {
+    setUpdateStatus("このブラウザはService Workerに対応していません。");
+    return;
+  }
+
+  try {
+    setUpdateStatus("更新を確認しています…");
+
+    if (!swRegistration) {
+      swRegistration = await navigator.serviceWorker.getRegistration();
+    }
+    if (!swRegistration) {
+      swRegistration = await navigator.serviceWorker.register("./sw.js");
+      bindServiceWorkerRegistration(swRegistration);
+    }
+
+    await swRegistration.update();
+
+    // update() 完了直後は installing の場合があるため少し待って状態を反映する。
+    if (swRegistration.waiting) {
+      showPendingUpdate(swRegistration.waiting);
+    } else if (swRegistration.installing) {
+      watchInstallingWorker(swRegistration.installing);
+      setUpdateStatus("更新ファイルを確認中です。見つかった場合は『更新する』が表示されます。");
+    } else {
+      setUpdateStatus("現在の版が最新です。更新は自動適用されません。");
+    }
+  } catch (err) {
+    console.warn("Update check failed:", err);
+    setUpdateStatus("更新を確認できませんでした。通信状態を確認してもう一度試してね。");
+  }
+}
+
+function applyAppUpdate() {
+  const worker = pendingUpdateWorker || swRegistration?.waiting;
+  if (!worker) {
+    setUpdateStatus("適用待ちの更新はありません。先に『更新を確認』を押してね。");
+    return;
+  }
+
+  setUpdateStatus("更新しています…");
+
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloading) return;
+    reloading = true;
+    window.location.reload();
+  }, { once: true });
+
+  worker.postMessage({ type: "ACTIVATE_UPDATE" });
+}
+
+window.addEventListener("beforeinstallprompt", event => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  refreshInstallUi();
+});
+
+window.addEventListener("appinstalled", () => {
+  deferredInstallPrompt = null;
+  refreshInstallUi();
+});
+
+function getWeeklyAverage(days = 7) {
+  const now = new Date();
+  let moodSum = 0, fatigueSum = 0, count = 0;
+
+  for (let i = 0; i < days; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    const key = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    const rec = data.records[key];
+    if (!rec) continue;
+
+    moodSum += rec.mood;
+    fatigueSum += rec.fatigue;
+    count++;
+  }
+
+  if (count === 0) return null;
+
+  return {
+    avgMood: moodSum / count,
+    avgFatigue: fatigueSum / count
+  };
+}
+
+function getMoodMessage(avg) {
+  if (avg <= 1) return "気分が優れないのかな。気持ちを吐き出すことはできそう？";
+  if (avg <= 1.2) return "少し落ち込み気味かな？";
+  if (avg <= 2.5) return "安定してる感じだよ。";
+  if (avg <= 3.2) return "調子が良いね。何か良いことでもあったの？";
+  return "ちょっとテンションが上がりすぎかも？必要なら誰かに相談しようね";
+}
+
+function getFatigueMessage(avg) {
+  if (avg <= 1.0) return "体力は十分そうだよ。";
+  if (avg <= 1.3) return "少し疲れがたまってるかも。適時休憩を取ってね。";
+  return "ちょっと休息が必要かも。たまにはサボるのも大事だよ。";
+}
+
+function getTodayMessage() {
+  const today = new Date();
+  const key = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+  const rec = data.records[key];
+  if (!rec) return "今日の記録はまだないよ。";
+
+  let msg = "";
+
+  const m = rec.mood;
+  if (m === 0) msg += "今日はあまり良い日じゃなかったのかな？明日は良い日になるといいね。<br>";
+  else if (m === 1) msg += "今日は平凡な日だった、といった感じかな？ゆっくり休んでね。<br>";
+  else if (m === 2) msg += "今日は何か良いことはあった？明日も良いことがあるといいね。<br>";
+  else if (m === 3) msg += "少し気分が上がることがあったのかな？疲れに気付けない事もあるから、ゆっくり休もうね。<br>";
+  else msg += "気分が上がりすぎているかも。寝る前に紅茶でも飲んで、少し落ち着く時間を作ってもいいかも。<br>";
+
+  const f = rec.fatigue;
+  if (f === 0) msg += "体力は十分みたいだね。";
+  else if (f === 1) msg += "少し疲れがあるかも、無理は禁物だよ。";
+  else msg += "疲れが強いみたい、今日は無理せず休もうね。";
+
+  return msg;
+}
+
+function hasTodayRecord() {
+  const today = new Date();
+  const key = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+  return !!data.records[key];
+}
+
+function renderAnalysis() {
+  const box = document.getElementById("analysis");
+  const weekly = getWeeklyAverage();
+
+  if (!weekly) {
+    box.textContent = "直近1週間の記録がありません。";
+    return;
+  }
+
+  const moodMsg = getMoodMessage(weekly.avgMood);
+  const fatigueMsg = getFatigueMessage(weekly.avgFatigue);
+  const todayMsg = getTodayMessage();
+  const gameCode = generateGameCode();
+
+  let omikujiHtml = "";
+
+  if (hasTodayRecord()) {
+    const omikuji = drawOmikuji();
+
+    omikujiHtml = `
+      <br><br>
+      <b>明日の運試し</b><br>
+      ${omikuji}
+      <br>
+      <small style="color:#666;">
+        記録から生成された符号：<b>${gameCode}</b>
+      </small>
+    `;
+  } else {
+    omikujiHtml = `
+      <br><br>
+      <b>明日の運試し</b><br>
+      今日の記録をつけると見られるよ。
+    `;
+  }
+
+  const html = `
+    <b>直近1週間の傾向</b>
+    / 平均気分：${weekly.avgMood.toFixed(2)}
+    / 平均疲労：${weekly.avgFatigue.toFixed(2)}<br>
+    ${moodMsg}<br>
+    ${fatigueMsg}
+    <br><br>
+    <b>今日の状態</b><br>
+    ${todayMsg}
+    ${omikujiHtml}
+  `;
+
+  box.innerHTML = html;
+}
+
+document.getElementById("prevMonth").onclick = () => {
+  currentMonth--;
+  if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+  renderCalendar();
+  renderAnalysis();
+};
+
+document.getElementById("nextMonth").onclick = () => {
+  currentMonth++;
+  if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+  renderCalendar();
+  renderAnalysis();
+};
+
+document.getElementById("prevYear").onclick = () => {
+  currentYear--;
+  renderCalendar();
+  renderAnalysis();
+};
+
+document.getElementById("nextYear").onclick = () => {
+  currentYear++;
+  renderCalendar();
+  renderAnalysis();
+};
+
+document.getElementById("openSettings").onclick = openSettings;
+document.getElementById("openDownload").onclick = openDownload;
+document.getElementById("downloadStart").onchange = updateDownloadSummary;
+document.getElementById("downloadEnd").onchange = updateDownloadSummary;
+document.getElementById("downloadBtn").onclick = downloadSelectedRecords;
+document.getElementById("installAppBtn").onclick = installApp;
+document.getElementById("checkUpdateBtn").onclick = checkForAppUpdate;
+document.getElementById("applyUpdateBtn").onclick = applyAppUpdate;
+document.getElementById("settingsSaveBtn").onclick = () => {
+  const name = document.getElementById("usernameInput").value.trim();
+  if (name.length < 1 || name.length > 6) {
+    alert("ユーザー名は1〜6文字で入力してね");
+    return;
+  }
+  data.settings.username = name;
+  saveData();
+  closeSettings();
+};
+
+function getSeedString(date = new Date()) {
+  const name = (data.settings.username || "noname")
+    .normalize("NFKC")
+    .trim()
+    .toLowerCase();
+
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+
+  return `${name}_${y}-${m}-${d}`;
+}
+
+function seedToNumber(seed) {
+  let h = 2166136261;
+  for (const c of seed) {
+    h ^= c.charCodeAt(0);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function seededRandom(seed) {
+  return (seed % 1000000) / 1000000;
+}
+
+function drawOmikuji(date = new Date()) {
+  const seed = seedToNumber(getSeedString(date));
+  const r = Math.floor(seededRandom(seed) * 100);
+
+  if (r === 0)
+    return "？？？ / 「今日の運勢は……うわ、なんだ貴様！離せ！やめろ！」";
+
+  if (r < 8)
+    return "大凶 / 「お布団から出られたら、それだけで優勝でいいと思うんだけど？」";
+
+  if (r < 18)
+    return "凶 / 「ところでさ、おみくじって引く前に“何を占うか”決めないと意味ないらしいよ」";
+
+  if (r < 35)
+    return "小吉 / 「まあ今日は様子見で。動かないのも一つの選択肢だよ」";
+
+  if (r < 60)
+    return "吉 / 「特別なことは起きないけど、致命的なことも起きない日。晴れたら合格ってことでおひとつ……」";
+
+  if (r < 85)
+    return "中吉 / 「あと一歩踏み出せたら上出来。とはいえ、状況を俯瞰して楽しむのも一興だよ」";
+
+  if (r < 99)
+    return "大吉 / 「今日をちゃんと終えられたら、それで合格点。平々凡々に勝るものは無いよ。」";
+
+  return "？？？ / 「今日の運勢は……特吉！？いやそんなはずは、ちゃんと隠しておいたはずなのに…ゴニョゴニョ」";
+}
+
+function seedToCode(seed) {
+  return seed.toString(36).toUpperCase();
+}
+
+function formatCode(code, length = 8) {
+  return code.padStart(length, "0").slice(-length);
+}
+
+function prettifyCode(code) {
+  return code.match(/.{1,4}/g).join("-");
+}
+
+function generateGameCode(date = new Date()) {
+  const seedStr = getSeedString(date);
+  const seedNum = seedToNumber(seedStr);
+  const rawCode = seedToCode(seedNum);
+  const fixed = formatCode(rawCode, 8);
+  return prettifyCode(fixed);
+}
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", async () => {
+    try {
+      const existing = await navigator.serviceWorker.getRegistration();
+      const registration = existing || await navigator.serviceWorker.register("./sw.js");
+      bindServiceWorkerRegistration(registration);
+    } catch (err) {
+      console.warn("Service Worker registration failed:", err);
+      setUpdateStatus("PWAの準備に失敗しました。ページを再読み込みしてみてね。");
+    }
+  });
+}
+
+refreshInstallUi();
+renderCalendar();
+renderAnalysis();
+</script>
+</body>
+</html>
