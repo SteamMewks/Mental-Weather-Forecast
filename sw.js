@@ -1,4 +1,4 @@
-const APP_VERSION = "v6";
+const APP_VERSION = "v1.2.1";
 
 const CACHE_PREFIX =
   `mental-weather-auto:${self.registration.scope}:`;
