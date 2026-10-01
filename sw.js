@@ -1,6 +1,6 @@
 const CACHE_PREFIX =
   `mental-weather-auto:${self.registration.scope}:`;
-const CACHE_NAME = `${CACHE_PREFIX}v4`;
+const CACHE_NAME = `${CACHE_PREFIX}v5`;
 
 const APP_SHELL = [
   "./",

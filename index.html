@@ -206,15 +206,6 @@ body {
   color: #666;
 }
 
-.update-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.update-actions button[hidden] {
-  display: none;
-}
 
   </style>
 </head>
@@ -358,11 +349,8 @@ body {
         <button id="installAppBtn" type="button">📲 アプリとしてインストール</button>
         <p id="installStatus" class="pwa-status">ホーム画面から使えるPWAとして追加できます。</p>
 
-        <div class="update-actions">
-          <button id="checkUpdateBtn" type="button">🔄 更新を確認</button>
-          <button id="applyUpdateBtn" type="button" hidden>更新する</button>
-        </div>
-        <p id="updateStatus" class="pwa-status">更新は自動適用されません。「更新を確認」から手動で更新できます。</p>
+        <p class="pwa-status">アプリは起動時に自動で更新を確認し、新しい版があれば自動で切り替わります。</p>
+        <p id="appVersion" class="pwa-status">現在のバージョン：確認中…</p>
       </section>
     </div>
   </div>
@@ -711,7 +699,7 @@ function downloadSelectedRecords() {
 
 let deferredInstallPrompt = null;
 let swRegistration = null;
-let pendingUpdateWorker = null;
+let reloadingForUpdate = false;
 
 function isStandaloneMode() {
   return window.matchMedia("(display-mode: standalone)").matches ||
@@ -773,103 +761,67 @@ async function installApp() {
   }
 }
 
-function setUpdateStatus(message) {
-  const status = document.getElementById("updateStatus");
-  if (status) status.textContent = message;
+function setAppVersion(version) {
+  const label = document.getElementById("appVersion");
+  if (!label || !version) return;
+
+  label.textContent = `現在のバージョン：${version}`;
+  localStorage.setItem("mentalWeatherAppVersion", version);
 }
 
-function showPendingUpdate(worker) {
-  pendingUpdateWorker = worker || swRegistration?.waiting || null;
-  const applyButton = document.getElementById("applyUpdateBtn");
-  if (applyButton) applyButton.hidden = !pendingUpdateWorker;
-
-  if (pendingUpdateWorker) {
-    setUpdateStatus("更新版があります。『更新する』を押すまで現在の版を使い続けます。");
-  }
+function showStoredAppVersion() {
+  const storedVersion = localStorage.getItem("mentalWeatherAppVersion");
+  if (storedVersion) setAppVersion(storedVersion);
 }
 
-function watchInstallingWorker(worker) {
-  if (!worker) return;
+function requestAppVersion() {
+  const controller = navigator.serviceWorker?.controller;
+  if (!controller) return;
 
-  worker.addEventListener("statechange", () => {
-    if (worker.state === "installed") {
-      if (navigator.serviceWorker.controller) {
-        showPendingUpdate(swRegistration?.waiting || worker);
-      } else {
-        setUpdateStatus("オフライン利用の準備ができました。次回からPWAとして利用できます。");
-      }
+  const channel = new MessageChannel();
+  channel.port1.onmessage = event => {
+    if (event.data?.type === "APP_VERSION") {
+      setAppVersion(event.data.version);
     }
-  });
+  };
+
+  controller.postMessage(
+    { type: "GET_APP_VERSION" },
+    [channel.port2]
+  );
 }
 
 function bindServiceWorkerRegistration(registration) {
   swRegistration = registration;
-
-  if (registration.waiting) {
-    showPendingUpdate(registration.waiting);
-  }
-
-  if (registration.installing) {
-    watchInstallingWorker(registration.installing);
-  }
+  requestAppVersion();
 
   registration.addEventListener("updatefound", () => {
-    watchInstallingWorker(registration.installing);
+    const worker = registration.installing;
+    if (!worker) return;
+
+    worker.addEventListener("statechange", () => {
+      if (worker.state === "installed" && navigator.serviceWorker.controller) {
+        console.log("New app version installed. Activating automatically.");
+      }
+    });
   });
 }
 
-async function checkForAppUpdate() {
-  if (!("serviceWorker" in navigator)) {
-    setUpdateStatus("このブラウザはService Workerに対応していません。");
+// 新しいService Workerが現在の画面を引き継いだら、一度だけ再読込して新版へ切り替える。
+// 初回インストール時は再読込せず、そのままバージョン表示だけ更新する。
+let hadServiceWorkerController = !!navigator.serviceWorker?.controller;
+
+navigator.serviceWorker?.addEventListener("controllerchange", () => {
+  if (!hadServiceWorkerController) {
+    hadServiceWorkerController = true;
+    requestAppVersion();
     return;
   }
 
-  try {
-    setUpdateStatus("更新を確認しています…");
-
-    if (!swRegistration) {
-      swRegistration = await navigator.serviceWorker.getRegistration();
-    }
-    if (!swRegistration) {
-      swRegistration = await navigator.serviceWorker.register("./sw.js");
-      bindServiceWorkerRegistration(swRegistration);
-    }
-
-    await swRegistration.update();
-
-    // update() 完了直後は installing の場合があるため少し待って状態を反映する。
-    if (swRegistration.waiting) {
-      showPendingUpdate(swRegistration.waiting);
-    } else if (swRegistration.installing) {
-      watchInstallingWorker(swRegistration.installing);
-      setUpdateStatus("更新ファイルを確認中です。見つかった場合は『更新する』が表示されます。");
-    } else {
-      setUpdateStatus("現在の版が最新です。更新は自動適用されません。");
-    }
-  } catch (err) {
-    console.warn("Update check failed:", err);
-    setUpdateStatus("更新を確認できませんでした。通信状態を確認してもう一度試してね。");
-  }
-}
-
-function applyAppUpdate() {
-  const worker = pendingUpdateWorker || swRegistration?.waiting;
-  if (!worker) {
-    setUpdateStatus("適用待ちの更新はありません。先に『更新を確認』を押してね。");
-    return;
-  }
-
-  setUpdateStatus("更新しています…");
-
-  let reloading = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (reloading) return;
-    reloading = true;
-    window.location.reload();
-  }, { once: true });
-
-  worker.postMessage({ type: "ACTIVATE_UPDATE" });
-}
+  if (reloadingForUpdate) return;
+  reloadingForUpdate = true;
+  window.location.reload();
+});
 
 window.addEventListener("beforeinstallprompt", event => {
   event.preventDefault();
@@ -1031,8 +983,6 @@ document.getElementById("downloadStart").onchange = updateDownloadSummary;
 document.getElementById("downloadEnd").onchange = updateDownloadSummary;
 document.getElementById("downloadBtn").onclick = downloadSelectedRecords;
 document.getElementById("installAppBtn").onclick = installApp;
-document.getElementById("checkUpdateBtn").onclick = checkForAppUpdate;
-document.getElementById("applyUpdateBtn").onclick = applyAppUpdate;
 document.getElementById("settingsSaveBtn").onclick = () => {
   const name = document.getElementById("usernameInput").value.trim();
   if (name.length < 1 || name.length > 6) {
@@ -1121,16 +1071,30 @@ function generateGameCode(date = new Date()) {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", async () => {
     try {
-      const existing = await navigator.serviceWorker.getRegistration();
-      const registration = existing || await navigator.serviceWorker.register("./sw.js");
+      // SW本体はHTTPキャッシュを使わず確認し、起動のたびに最新版を確認する。
+      const registration = await navigator.serviceWorker.register("./sw.js", {
+        updateViaCache: "none"
+      });
       bindServiceWorkerRegistration(registration);
+      await registration.update();
     } catch (err) {
-      console.warn("Service Worker registration failed:", err);
-      setUpdateStatus("PWAの準備に失敗しました。ページを再読み込みしてみてね。");
+      console.warn("Service Worker registration/update failed:", err);
+    }
+  });
+
+  // PWAをバックグラウンドから戻した時にも更新確認する。
+  document.addEventListener("visibilitychange", async () => {
+    if (document.visibilityState !== "visible" || !swRegistration) return;
+
+    try {
+      await swRegistration.update();
+    } catch (err) {
+      console.warn("Service Worker update check failed:", err);
     }
   });
 }
 
+showStoredAppVersion();
 refreshInstallUi();
 renderCalendar();
 renderAnalysis();
